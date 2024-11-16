@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 )
 
@@ -11,5 +12,7 @@ type ErrorResponse struct {
 
 func WriteErrorResponse(w http.ResponseWriter, statusCode int, message string) {
 	w.WriteHeader(statusCode)
-	json.NewEncoder(w).Encode(ErrorResponse{Message: message})
+	if err := json.NewEncoder(w).Encode(ErrorResponse{Message: message}); err != nil {
+		log.Fatalf("Failed to write error response: %v", err)
+	}
 }

@@ -37,7 +37,9 @@ func (h *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(user)
+	if err := json.NewEncoder(w).Encode(user); err != nil {
+		WriteErrorResponse(w, http.StatusInternalServerError, "Failed to encode response: "+err.Error())
+	}
 }
 
 func (h *UserHandler) GetAllUsers(w http.ResponseWriter, r *http.Request) {
@@ -50,7 +52,9 @@ func (h *UserHandler) GetAllUsers(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(users)
+	if err := json.NewEncoder(w).Encode(users); err != nil {
+		WriteErrorResponse(w, http.StatusInternalServerError, "Failed to encode response: "+err.Error())
+	}
 }
 
 func (h *UserHandler) GetUserByID(w http.ResponseWriter, r *http.Request) {
@@ -60,14 +64,18 @@ func (h *UserHandler) GetUserByID(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		WriteErrorResponse(w, http.StatusBadRequest, "Invalid user ID format")
+		return
 	}
 
 	user, err := h.service.GetUserByID(uint(userID))
 
 	if err != nil {
 		WriteErrorResponse(w, http.StatusNotFound, "User not found")
+		return
 	}
 
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(user)
+	if err := json.NewEncoder(w).Encode(user); err != nil {
+		WriteErrorResponse(w, http.StatusInternalServerError, "Failed to encode response: "+err.Error())
+	}
 }
