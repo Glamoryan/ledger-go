@@ -16,7 +16,8 @@ func main() {
 	userHandler := handlers.NewUserHandler(userService)
 
 	router := mux.NewRouter()
-	router.HandleFunc("/users", userHandler.CreateUser).Methods("POST")
+	router.HandleFunc("/users/add-user", userHandler.CreateUser).Methods("POST")
+	router.HandleFunc("/users", userHandler.GetAllUsers).Methods("GET")
 
 	http.ListenAndServe(":8080", router)
 }

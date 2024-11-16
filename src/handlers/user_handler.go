@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"Ledger/src/services"
+	"Ledger/src/validation"
 	"encoding/json"
 	"net/http"
 )
@@ -15,24 +16,38 @@ func NewUserHandler(service *services.UserService) *UserHandler {
 }
 
 func (h *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
-	var request struct {
-		Name string `json:"name"`
+	var input validation.UserInput
+
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		WriteErrorResponse(w, http.StatusBadRequest, "Invalid input format")
 	}
 
-	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-		http.Error(w, "Invalid input", http.StatusBadRequest)
-
+	if err := validation.ValidateUserInput(input); err != nil {
+		WriteErrorResponse(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	user, err := h.service.CreateUser(request.Name)
+	user, err := h.service.CreateUser(input.Name, input.Surname, input.Age)
 
 	if err != nil {
-		http.Error(w, "Could not create user: "+err.Error(), http.StatusInternalServerError)
+		WriteErrorResponse(w, http.StatusInternalServerError, "Could not create a user: "+err.Error())
 
 		return
 	}
 
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(user)
+}
+
+func (h *UserHandler) GetAllUsers(w http.ResponseWriter, r *http.Request) {
+	users, err := h.service.GetAllUsers()
+
+	if err != nil {
+		http.Error(w, "Could not retrieve users", http.StatusInternalServerError)
+
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(users)
 }

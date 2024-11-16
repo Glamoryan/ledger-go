@@ -13,8 +13,12 @@ func NewUserService(repo repository.UserRepository) *UserService {
 	return &UserService{repo: repo}
 }
 
-func (s *UserService) CreateUser(name string) (*entities.User, error) {
-	user := &entities.User{Name: name}
+func (s *UserService) CreateUser(name, surname string, age int) (*entities.User, error) {
+	user := &entities.User{
+		Name:    name,
+		Surname: surname,
+		Age:     age,
+	}
 	err := s.repo.Create(user)
 
 	return user, err
