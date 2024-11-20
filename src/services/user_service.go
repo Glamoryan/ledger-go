@@ -9,6 +9,9 @@ type UserService interface {
 	CreateUser(name, surname string, age int) (*entities.User, error)
 	GetUserByID(id uint) (*entities.User, error)
 	GetAllUsers() ([]entities.User, error)
+	AddCredit(id uint, amount float64) error
+	GetCredit(id uint) (float64, error)
+	GetAllCredits() ([]map[string]interface{}, error)
 }
 
 type userService struct {
@@ -35,4 +38,20 @@ func (s *userService) GetUserByID(id uint) (*entities.User, error) {
 
 func (s *userService) GetAllUsers() ([]entities.User, error) {
 	return s.repo.GetAll()
+}
+
+func (s *userService) AddCredit(id uint, amount float64) error {
+	currentCredit, err := s.repo.GetUserCredit(id)
+	if err != nil {
+		return err
+	}
+	return s.repo.UpdateCredit(id, currentCredit+amount)
+}
+
+func (s *userService) GetCredit(id uint) (float64, error) {
+	return s.repo.GetUserCredit(id)
+}
+
+func (s *userService) GetAllCredits() ([]map[string]interface{}, error) {
+	return s.repo.GetAllCredits()
 }

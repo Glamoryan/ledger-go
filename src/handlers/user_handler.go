@@ -21,6 +21,7 @@ func (h *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
 		WriteErrorResponse(w, http.StatusBadRequest, "Invalid input format")
+		return
 	}
 
 	if err := validation.ValidateUserInput(input); err != nil {
@@ -32,7 +33,6 @@ func (h *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		WriteErrorResponse(w, http.StatusInternalServerError, "Could not create a user: "+err.Error())
-
 		return
 	}
 
@@ -76,6 +76,60 @@ func (h *UserHandler) GetUserByID(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusOK)
 	if err := json.NewEncoder(w).Encode(user); err != nil {
+		WriteErrorResponse(w, http.StatusInternalServerError, "Failed to encode response: "+err.Error())
+	}
+}
+
+func (h *UserHandler) AddCredit(w http.ResponseWriter, r *http.Request) {
+	vars := r.URL.Query()
+
+	id, err := strconv.Atoi(vars.Get("id"))
+	if err != nil || id <= 0 {
+		WriteErrorResponse(w, http.StatusBadRequest, "Invalid or missing user ID")
+		return
+	}
+
+	amountStr := vars.Get("amount")
+	amount, err := strconv.ParseFloat(amountStr, 64)
+	if err != nil || amount <= 0 {
+		WriteErrorResponse(w, http.StatusBadRequest, "Invalid or missing amount. Amount must be a positive number.")
+		return
+	}
+
+	err = h.service.AddCredit(uint(id), amount)
+	if err != nil {
+		WriteErrorResponse(w, http.StatusInternalServerError, "Failed to add credit: "+err.Error())
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	if err := json.NewEncoder(w).Encode(map[string]string{"message": "Credit added successfully"}); err != nil {
+		WriteErrorResponse(w, http.StatusInternalServerError, "Failed to encode response: "+err.Error())
+	}
+}
+
+func (h *UserHandler) GetCredit(w http.ResponseWriter, r *http.Request) {
+	vars := r.URL.Query()
+	id, _ := strconv.Atoi(vars.Get("id"))
+	credit, err := h.service.GetCredit(uint(id))
+	if err != nil {
+		WriteErrorResponse(w, http.StatusInternalServerError, "Failed to get credit: "+err.Error())
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	if err := json.NewEncoder(w).Encode(map[string]float64{"credit": credit}); err != nil {
+		WriteErrorResponse(w, http.StatusInternalServerError, "Failed to encode response: "+err.Error())
+	}
+}
+
+func (h *UserHandler) GetAllCredits(w http.ResponseWriter, r *http.Request) {
+	credits, err := h.service.GetAllCredits()
+	if err != nil {
+		WriteErrorResponse(w, http.StatusInternalServerError, "Failed to retrieve user credits: "+err.Error())
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	if err := json.NewEncoder(w).Encode(credits); err != nil {
 		WriteErrorResponse(w, http.StatusInternalServerError, "Failed to encode response: "+err.Error())
 	}
 }
