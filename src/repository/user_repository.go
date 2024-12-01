@@ -12,10 +12,29 @@ type UserRepository interface {
 	UpdateCredit(id uint, credit float64) error
 	GetUserCredit(id uint) (float64, error)
 	GetAllCredits() ([]map[string]interface{}, error)
+	SendCreditToUser(senderId, receiverId uint, amount float64) error
 }
 
 type userRepository struct {
 	db *gorm.DB
+}
+
+func (r *userRepository) SendCreditToUser(senderId, receiverId uint, amount float64) error {
+	return r.db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Model(&entities.User{}).
+			Where("id = ?", senderId).
+			Update("credit", gorm.Expr("credit - ?", amount)).Error; err != nil {
+			return err
+		}
+
+		if err := tx.Model(&entities.User{}).
+			Where("id = ?", receiverId).
+			Update("credit", gorm.Expr("credit + ?", amount)).Error; err != nil {
+			return err
+		}
+
+		return nil
+	})
 }
 
 func NewUserRepository(db *gorm.DB) UserRepository {

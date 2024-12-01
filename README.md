@@ -24,6 +24,10 @@ curl -X POST "http://localhost:8080/users/add-credit?id=abc&amount=50"
 # Missing or Invalid `amount`
 curl -X POST "http://localhost:8080/users/add-credit?id=1&amount=abc"
 
+# Send credit to a user
+curl --location --request POST 'http://localhost:8080/users/send-credit?senderId=1&receiverId=4&amount=50' \
+--header 'Content-Type: application/json' \
+--data ''
 ```
 ### DB
 ```sql

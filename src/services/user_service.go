@@ -12,6 +12,7 @@ type UserService interface {
 	AddCredit(id uint, amount float64) error
 	GetCredit(id uint) (float64, error)
 	GetAllCredits() ([]map[string]interface{}, error)
+	SendCredit(senderId, receiverId uint, amount float64) error
 }
 
 type userService struct {
@@ -54,4 +55,8 @@ func (s *userService) GetCredit(id uint) (float64, error) {
 
 func (s *userService) GetAllCredits() ([]map[string]interface{}, error) {
 	return s.repo.GetAllCredits()
+}
+
+func (s *userService) SendCredit(senderId, receiverId uint, amount float64) error {
+	return s.repo.SendCreditToUser(senderId, receiverId, amount)
 }

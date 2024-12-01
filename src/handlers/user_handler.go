@@ -133,3 +133,37 @@ func (h *UserHandler) GetAllCredits(w http.ResponseWriter, r *http.Request) {
 		WriteErrorResponse(w, http.StatusInternalServerError, "Failed to encode response: "+err.Error())
 	}
 }
+
+func (h *UserHandler) SendCredit(w http.ResponseWriter, r *http.Request) {
+	vars := r.URL.Query()
+
+	senderId, err := strconv.Atoi(vars.Get("senderId"))
+	if err != nil || senderId <= 0 {
+		WriteErrorResponse(w, http.StatusBadRequest, "Invalid or missing sender ID")
+		return
+	}
+
+	receiverId, err := strconv.Atoi(vars.Get("receiverId"))
+	if err != nil || receiverId <= 0 {
+		WriteErrorResponse(w, http.StatusBadRequest, "Invalid or missing receiver ID")
+		return
+	}
+
+	amountStr := vars.Get("amount")
+	amount, err := strconv.ParseFloat(amountStr, 64)
+	if err != nil || amount <= 0 {
+		WriteErrorResponse(w, http.StatusBadRequest, "Invalid or missing amount. Amount must be a positive number.")
+		return
+	}
+
+	err = h.service.SendCredit(uint(senderId), uint(receiverId), amount)
+	if err != nil {
+		WriteErrorResponse(w, http.StatusInternalServerError, "Failed to send credit: "+err.Error())
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	if err := json.NewEncoder(w).Encode(map[string]string{"message": "Credit sent successfully"}); err != nil {
+		WriteErrorResponse(w, http.StatusInternalServerError, "Failed to encode response: "+err.Error())
+	}
+}
