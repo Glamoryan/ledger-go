@@ -13,7 +13,7 @@ curl -X GET "http://localhost:8080/users/get-user?id=1"
 curl -X POST "http://localhost:8080/users/add-credit?id=1&amount=50"
 
 # Get All Users' Credits
-curl -X POST "http://localhost:8080/users/credits"
+curl -X GET "http://localhost:8080/users/credits"
 
 # Query User's Credit
 curl -X GET "http://localhost:8080/users/get-credit?id=1"
