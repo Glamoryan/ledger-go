@@ -40,6 +40,20 @@ CREATE TABLE users (
     Credit DOUBLE PRECISION DEFAULT 0 
 );
 
+-- Create table for transaction logs
+CREATE TABLE transaction_logs (
+    id SERIAL PRIMARY KEY,                     
+    sender_id INT NOT NULL,                    
+    receiver_id INT NOT NULL,                  
+    amount DECIMAL(10, 2) NOT NULL,            
+    sender_credit_before DECIMAL(10, 2) NOT NULL, 
+    receiver_credit_before DECIMAL(10, 2) NOT NULL, 
+    transaction_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (sender_id) REFERENCES users(id),  
+    FOREIGN KEY (receiver_id) REFERENCES users(id)
+);
+
+
 -- Add a sample user
 INSERT INTO users (name, surname, age, credit)
 VALUES ('John', 'Doe', 30, 50.0);

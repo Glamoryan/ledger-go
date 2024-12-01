@@ -3,6 +3,7 @@ package repository
 import (
 	"Ledger/src/entities"
 	"gorm.io/gorm"
+	"time"
 )
 
 type UserRepository interface {
@@ -13,10 +14,23 @@ type UserRepository interface {
 	GetUserCredit(id uint) (float64, error)
 	GetAllCredits() ([]map[string]interface{}, error)
 	SendCreditToUser(senderId, receiverId uint, amount float64) error
+	LogTransaction(senderId, receiverId uint, amount, senderCreditBefore, receiverCreditBefore float64) error
 }
 
 type userRepository struct {
 	db *gorm.DB
+}
+
+func (r *userRepository) LogTransaction(senderId, receiverId uint, amount, senderCreditBefore, receiverCreditBefore float64) error {
+	logEntry := entities.TransactionLog{
+		SenderID:             senderId,
+		ReceiverID:           receiverId,
+		Amount:               amount,
+		SenderCreditBefore:   senderCreditBefore,
+		ReceiverCreditBefore: receiverCreditBefore,
+		TransactionDate:      time.Now(),
+	}
+	return r.db.Create(&logEntry).Error
 }
 
 func (r *userRepository) SendCreditToUser(senderId, receiverId uint, amount float64) error {

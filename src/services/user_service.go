@@ -3,6 +3,7 @@ package services
 import (
 	"Ledger/src/entities"
 	"Ledger/src/repository"
+	"errors"
 )
 
 type UserService interface {
@@ -58,5 +59,27 @@ func (s *userService) GetAllCredits() ([]map[string]interface{}, error) {
 }
 
 func (s *userService) SendCredit(senderId, receiverId uint, amount float64) error {
-	return s.repo.SendCreditToUser(senderId, receiverId, amount)
+	senderCredit, err := s.repo.GetUserCredit(senderId)
+	if err != nil {
+		return err
+	}
+
+	if senderCredit < amount {
+		return errors.New("insufficient credit")
+	}
+
+	receiverCredit, err := s.repo.GetUserCredit(receiverId)
+	if err != nil {
+		return err
+	}
+
+	if err := s.repo.SendCreditToUser(senderId, receiverId, amount); err != nil {
+		return err
+	}
+
+	if err := s.repo.LogTransaction(senderId, receiverId, amount, senderCredit, receiverCredit); err != nil {
+		return err
+	}
+
+	return nil
 }
