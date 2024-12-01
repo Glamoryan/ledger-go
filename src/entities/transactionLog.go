@@ -3,11 +3,11 @@ package entities
 import "time"
 
 type TransactionLog struct {
-	ID                   uint      `gorm:"primaryKey"`
-	SenderID             uint      `gorm:"not null"`
-	ReceiverID           uint      `gorm:"not null"`
-	Amount               float64   `gorm:"not null"`
-	SenderCreditBefore   float64   `gorm:"not null"`
-	ReceiverCreditBefore float64   `gorm:"not null"`
-	TransactionDate      time.Time `gorm:"autoCreateTime"`
+	ID                   uint      `json:"id"`
+	SenderID             uint      `json:"sender_id"`
+	ReceiverID           uint      `json:"receiver_id"`
+	Amount               float64   `json:"amount"`
+	SenderCreditBefore   float64   `json:"sender_credit_before"`
+	ReceiverCreditBefore float64   `json:"receiver_credit_before"`
+	TransactionDate      time.Time `json:"transaction_date"`
 }

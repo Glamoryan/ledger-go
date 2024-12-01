@@ -28,6 +28,9 @@ curl -X POST "http://localhost:8080/users/add-credit?id=1&amount=abc"
 curl --location --request POST 'http://localhost:8080/users/send-credit?senderId=1&receiverId=4&amount=50' \
 --header 'Content-Type: application/json' \
 --data ''
+
+# Get user's transaction log
+curl --location 'http://localhost:8080/users/transaction-logs/sender?senderId=4&date=2024-12-01'
 ```
 ### DB
 ```sql

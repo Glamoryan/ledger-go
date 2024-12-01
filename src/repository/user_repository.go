@@ -15,10 +15,24 @@ type UserRepository interface {
 	GetAllCredits() ([]map[string]interface{}, error)
 	SendCreditToUser(senderId, receiverId uint, amount float64) error
 	LogTransaction(senderId, receiverId uint, amount, senderCreditBefore, receiverCreditBefore float64) error
+	GetTransactionLogsBySenderAndDate(senderId uint, date string) ([]entities.TransactionLog, error)
 }
 
 type userRepository struct {
 	db *gorm.DB
+}
+
+func (r *userRepository) GetTransactionLogsBySenderAndDate(senderId uint, date string) ([]entities.TransactionLog, error) {
+	var logs []entities.TransactionLog
+	query := r.db.Model(&entities.TransactionLog{})
+
+	err := query.
+		Where("sender_id = ?", senderId).
+		Where("DATE(transaction_date) = ?", date).
+		Order("transaction_date DESC").
+		Find(&logs).Error
+
+	return logs, err
 }
 
 func (r *userRepository) LogTransaction(senderId, receiverId uint, amount, senderCreditBefore, receiverCreditBefore float64) error {

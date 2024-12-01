@@ -14,10 +14,15 @@ type UserService interface {
 	GetCredit(id uint) (float64, error)
 	GetAllCredits() ([]map[string]interface{}, error)
 	SendCredit(senderId, receiverId uint, amount float64) error
+	GetTransactionLogsBySenderAndDate(senderId uint, date string) ([]entities.TransactionLog, error)
 }
 
 type userService struct {
 	repo repository.UserRepository
+}
+
+func (s *userService) GetTransactionLogsBySenderAndDate(senderId uint, date string) ([]entities.TransactionLog, error) {
+	return s.repo.GetTransactionLogsBySenderAndDate(senderId, date)
 }
 
 func NewUserService(repo repository.UserRepository) UserService {

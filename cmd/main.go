@@ -21,6 +21,7 @@ func main() {
 	router.HandleFunc("/users/get-credit", userHandler.GetCredit).Methods("GET")
 	router.HandleFunc("/users/credits", userHandler.GetAllCredits).Methods("GET")
 	router.HandleFunc("/users/send-credit", userHandler.SendCredit).Methods("POST")
+	router.HandleFunc("/users/transaction-logs/sender", userHandler.GetTransactionLogsBySenderAndDate).Methods("GET")
 
 	err := http.ListenAndServe(":8080", router)
 	if err != nil {

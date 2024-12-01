@@ -16,6 +16,29 @@ func NewUserHandler(service services.UserService) *UserHandler {
 	return &UserHandler{service: service}
 }
 
+func (h *UserHandler) GetTransactionLogsBySenderAndDate(w http.ResponseWriter, r *http.Request) {
+	vars := r.URL.Query()
+	senderIdStr := vars.Get("senderId")
+	date := vars.Get("date")
+
+	senderId, err := strconv.Atoi(senderIdStr)
+	if err != nil || senderId <= 0 {
+		WriteErrorResponse(w, http.StatusBadRequest, "Invalid or missing senderId")
+		return
+	}
+
+	logs, err := h.service.GetTransactionLogsBySenderAndDate(uint(senderId), date)
+	if err != nil {
+		WriteErrorResponse(w, http.StatusInternalServerError, "Failed to fetch transaction logs: "+err.Error())
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	if err := json.NewEncoder(w).Encode(logs); err != nil {
+		WriteErrorResponse(w, http.StatusInternalServerError, "Failed to encode response: "+err.Error())
+	}
+}
+
 func (h *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 	var input validation.UserInput
 
