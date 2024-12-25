@@ -170,6 +170,10 @@ func (h *UserHandler) GetCredit(w http.ResponseWriter, r *http.Request) {
 
 	credit, err := h.service.GetUserCredit(uint(userID))
 	if err != nil {
+		if err.Error() == "user not found" {
+			response.WriteError(w, http.StatusNotFound, fmt.Sprintf("User with ID %d not found", userID))
+			return
+		}
 		response.WriteError(w, http.StatusInternalServerError, "Error getting credit: "+err.Error())
 		return
 	}

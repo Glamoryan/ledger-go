@@ -1,18 +1,25 @@
 package repository
 
 import (
+	"Ledger/pkg/cache"
 	"Ledger/src/models"
+	"context"
+	"errors"
+	"fmt"
 	"gorm.io/gorm"
 	"time"
-	"errors"
 )
 
 type userRepository struct {
 	db *gorm.DB
+	cache *cache.RedisCache
 }
 
-func NewUserRepository(db *gorm.DB) UserRepository {
-	return &userRepository{db: db}
+func NewUserRepository(db *gorm.DB, cache *cache.RedisCache) UserRepository {
+	return &userRepository{
+		db: db,
+		cache: cache,
+	}
 }
 
 func (r *userRepository) Create(user *models.User) error {
@@ -38,18 +45,50 @@ func (r *userRepository) GetByEmail(email string) (*models.User, error) {
 }
 
 func (r *userRepository) GetUserCredit(userID uint) (float64, error) {
-	var credit float64
-	err := r.db.Model(&models.User{}).Where("id = ?", userID).Select("credit").Scan(&credit).Error
-	return credit, err
+	ctx := context.Background()
+	
+	credit, err := r.cache.GetUserCredit(ctx, userID)
+	if err == nil {
+		fmt.Printf("Cache HIT for user %d: %f\n", userID, credit)
+		return credit, nil
+	}
+	fmt.Printf("Cache MISS for user %d\n", userID)
+
+	var user models.User
+	if err := r.db.First(&user, userID).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return 0, errors.New("user not found")
+		}
+		return 0, err
+	}
+
+	var dbCredit float64
+	err = r.db.Model(&models.User{}).Where("id = ?", userID).Select("credit").Scan(&dbCredit).Error
+	if err != nil {
+		return 0, err
+	}
+
+	err = r.cache.SetUserCredit(ctx, userID, dbCredit)
+	if err != nil {
+		fmt.Printf("Failed to set cache for user %d: %v\n", userID, err)
+	} else {
+		fmt.Printf("Cache SET for user %d: %f\n", userID, dbCredit)
+	}
+	
+	return dbCredit, nil
 }
 
 func (r *userRepository) UpdateCredit(userID uint, newAmount float64) error {
-	var user models.User
-	if err := r.db.First(&user, userID).Error; err != nil {
-		return errors.New("user not found")
+	ctx := context.Background()
+	
+	err := r.db.Model(&models.User{}).Where("id = ?", userID).Update("credit", newAmount).Error
+	if err != nil {
+		return err
 	}
 
-	return r.db.Model(&models.User{}).Where("id = ?", userID).Update("credit", newAmount).Error
+	_ = r.cache.InvalidateUserCredit(ctx, userID)
+	
+	return nil
 }
 
 func (r *userRepository) GetAllCredits() (map[uint]float64, error) {
