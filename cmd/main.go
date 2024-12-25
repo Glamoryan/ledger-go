@@ -29,6 +29,9 @@ func main() {
 	router.HandleFunc("/users/add-credit", authMiddleware.Authenticate(authMiddleware.AdminOnly(userHandler.AddCredit))).Methods("POST")
 	router.HandleFunc("/users/credits", authMiddleware.Authenticate(authMiddleware.AdminOnly(userHandler.GetAllCredits))).Methods("GET")
 
+	router.HandleFunc("/users/batch/credits", authMiddleware.Authenticate(authMiddleware.AdminOnly(userHandler.GetMultipleUserCredits))).Methods("POST")
+	router.HandleFunc("/users/batch/update-credits", authMiddleware.Authenticate(authMiddleware.AdminOnly(userHandler.ProcessBatchCreditUpdate))).Methods("POST")
+
 	err := http.ListenAndServe(":8080", router)
 	if err != nil {
 		return

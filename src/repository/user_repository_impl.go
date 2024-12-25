@@ -165,4 +165,115 @@ func (r *userRepository) GetTransactionLogsBySenderAndDate(senderID uint, date s
 		Find(&logs).Error
 
 	return logs, err
+}
+
+func (r *userRepository) GetMultipleUserCredits(userIDs []uint) (map[uint]float64, error) {
+	ctx := context.Background()
+	
+	cachedCredits, err := r.cache.GetMultipleUserCredits(ctx, userIDs)
+	if err != nil {
+		return nil, err
+	}
+
+	missingUserIDs := make([]uint, 0)
+	for _, userID := range userIDs {
+		if _, exists := cachedCredits[userID]; !exists {
+			missingUserIDs = append(missingUserIDs, userID)
+		}
+	}
+
+	if len(missingUserIDs) > 0 {
+		var users []models.User
+		err := r.db.Where("id IN ?", missingUserIDs).Select("id, credit").Find(&users).Error
+		if err != nil {
+			return nil, err
+		}
+
+		dbCredits := make(map[uint]float64)
+		for _, user := range users {
+			dbCredits[user.ID] = user.Credit
+			cachedCredits[user.ID] = user.Credit
+		}
+
+		go func() {
+			_ = r.cache.SetMultipleUserCredits(ctx, dbCredits)
+		}()
+	}
+
+	return cachedCredits, nil
+}
+
+func (r *userRepository) ProcessBatchCreditUpdate(transactions []models.BatchCreditTransaction) []models.BatchTransactionResult {
+	results := make([]models.BatchTransactionResult, len(transactions))
+	userIDs := make([]uint, len(transactions))
+	
+	for i, txn := range transactions {
+		userIDs[i] = txn.UserID
+	}
+
+	var existingUsers []models.User
+	err := r.db.Where("id IN ?", userIDs).Select("id, credit").Find(&existingUsers).Error
+	if err != nil {
+		for i := range results {
+			results[i] = models.BatchTransactionResult{
+				Success: false,
+				UserID:  transactions[i].UserID,
+				Amount:  transactions[i].Amount,
+				Error:   "Database error",
+			}
+		}
+		return results
+	}
+
+	existingUserMap := make(map[uint]bool)
+	for _, user := range existingUsers {
+		existingUserMap[user.ID] = true
+	}
+
+	err = r.db.Transaction(func(tx *gorm.DB) error {
+		ctx := context.Background()
+		updatedUserIDs := make([]uint, 0)
+
+		for i, txn := range transactions {
+			if !existingUserMap[txn.UserID] {
+				results[i] = models.BatchTransactionResult{
+					Success: false,
+					UserID:  txn.UserID,
+					Amount:  txn.Amount,
+					Error:   "User not found",
+				}
+				continue
+			}
+
+			err := tx.Model(&models.User{}).
+				Where("id = ?", txn.UserID).
+				Update("credit", gorm.Expr("credit + ?", txn.Amount)).Error
+
+			if err != nil {
+				results[i] = models.BatchTransactionResult{
+					Success: false,
+					UserID:  txn.UserID,
+					Amount:  txn.Amount,
+					Error:   "Update failed",
+				}
+			} else {
+				results[i] = models.BatchTransactionResult{
+					Success: true,
+					UserID:  txn.UserID,
+					Amount:  txn.Amount,
+				}
+				updatedUserIDs = append(updatedUserIDs, txn.UserID)
+			}
+		}
+
+		if len(updatedUserIDs) > 0 {
+			go func() {
+				_ = r.cache.InvalidateMultipleUserCredits(ctx, updatedUserIDs)
+			}()
+		}
+
+		return nil
+	})
+
+	return results
 } 

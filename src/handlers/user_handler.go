@@ -268,3 +268,65 @@ func (h *UserHandler) Login(w http.ResponseWriter, r *http.Request) {
 		"token": token,
 	})
 }
+
+func (h *UserHandler) GetMultipleUserCredits(w http.ResponseWriter, r *http.Request) {
+	claims := middleware.GetUserFromContext(r.Context())
+	if claims == nil {
+		response.WriteError(w, http.StatusUnauthorized, "Unauthorized access")
+		return
+	}
+
+	if !h.jwtService.IsAdmin(claims) {
+		response.WriteError(w, http.StatusForbidden, "Admin access required")
+		return
+	}
+
+	var userIDs []uint
+	if err := json.NewDecoder(r.Body).Decode(&userIDs); err != nil {
+		response.WriteError(w, http.StatusBadRequest, "Invalid request format")
+		return
+	}
+
+	credits, err := h.service.GetMultipleUserCredits(userIDs)
+	if err != nil {
+		response.WriteError(w, http.StatusInternalServerError, "Error getting credits: "+err.Error())
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(credits)
+}
+
+func (h *UserHandler) ProcessBatchCreditUpdate(w http.ResponseWriter, r *http.Request) {
+	claims := middleware.GetUserFromContext(r.Context())
+	if claims == nil {
+		response.WriteError(w, http.StatusUnauthorized, "Unauthorized access")
+		return
+	}
+
+	if !h.jwtService.IsAdmin(claims) {
+		response.WriteError(w, http.StatusForbidden, "Admin access required")
+		return
+	}
+
+	var req models.BatchTransactionRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		response.WriteError(w, http.StatusBadRequest, "Invalid request format")
+		return
+	}
+
+	if len(req.Transactions) == 0 {
+		response.WriteError(w, http.StatusBadRequest, "No transactions provided")
+		return
+	}
+
+	if len(req.Transactions) > 1000 {
+		response.WriteError(w, http.StatusBadRequest, "Too many transactions. Maximum 1000 allowed")
+		return
+	}
+
+	results := h.service.ProcessBatchCreditUpdate(req.Transactions)
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(results)
+}

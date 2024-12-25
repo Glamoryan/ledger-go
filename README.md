@@ -54,6 +54,54 @@ curl -X GET "http://localhost:8080/users/credits" -H "Authorization: Bearer ADMI
 curl -X GET "http://localhost:8080/users" -H "Authorization: Bearer ADMIN_TOKEN"
 ```
 
+### Batch Operations (Admin Only)
+
+#### Get Multiple User Credits
+```bash
+curl -X POST "http://localhost:8080/users/batch/credits" \
+     -H "Authorization: Bearer ADMIN_TOKEN" \
+     -H "Content-Type: application/json" \
+     -d '[1, 2, 3]'  # Array of user IDs
+```
+
+#### Batch Credit Update
+```bash
+curl -X POST "http://localhost:8080/users/batch/update-credits" \
+     -H "Authorization: Bearer ADMIN_TOKEN" \
+     -H "Content-Type: application/json" \
+     -d '{
+         "transactions": [
+             {"user_id": 1, "amount": 100.50},
+             {"user_id": 2, "amount": 200.75},
+             {"user_id": 3, "amount": 50.25}
+         ]
+     }'
+```
+
+Response format for batch credit update:
+```json
+[
+    {
+        "success": true,
+        "user_id": 1,
+        "amount": 100.50,
+        "error": ""
+    },
+    {
+        "success": true,
+        "user_id": 2,
+        "amount": 200.75,
+        "error": ""
+    },
+    {
+        "success": false,
+        "user_id": 3,
+        "amount": 50.25,
+        "error": "User not found"
+    }
+]
+```
+
 ## Database Schema
 
 ### Users Table

@@ -56,4 +56,23 @@ func (s *userService) SendCredit(senderID, receiverID uint, amount float64) erro
 
 func (s *userService) GetTransactionLogsBySenderAndDate(senderID uint, date string) ([]models.TransactionLog, error) {
 	return s.repo.GetTransactionLogsBySenderAndDate(senderID, date)
+}
+
+func (s *userService) GetMultipleUserCredits(userIDs []uint) (map[uint]float64, error) {
+	return s.repo.GetMultipleUserCredits(userIDs)
+}
+
+func (s *userService) ProcessBatchCreditUpdate(transactions []models.BatchCreditTransaction) []models.BatchTransactionResult {
+	for _, txn := range transactions {
+		if txn.Amount <= 0 {
+			return []models.BatchTransactionResult{{
+				Success: false,
+				UserID:  txn.UserID,
+				Amount:  txn.Amount,
+				Error:   "Amount must be positive",
+			}}
+		}
+	}
+	
+	return s.repo.ProcessBatchCreditUpdate(transactions)
 } 

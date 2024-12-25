@@ -14,4 +14,6 @@ type UserService interface {
 	GetAllCredits() (map[uint]float64, error)
 	SendCredit(senderID, receiverID uint, amount float64) error
 	GetTransactionLogsBySenderAndDate(senderID uint, date string) ([]models.TransactionLog, error)
+	GetMultipleUserCredits(userIDs []uint) (map[uint]float64, error)
+	ProcessBatchCreditUpdate(transactions []models.BatchCreditTransaction) []models.BatchTransactionResult
 }
