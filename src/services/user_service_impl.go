@@ -75,4 +75,12 @@ func (s *userService) ProcessBatchCreditUpdate(transactions []models.BatchCredit
 	}
 	
 	return s.repo.ProcessBatchCreditUpdate(transactions)
+}
+
+func (s *userService) SendCreditAsync(senderID, receiverID uint, amount float64) error {
+	if amount <= 0 {
+		return errors.New("amount must be positive")
+	}
+
+	return s.repo.SendCreditAsync(senderID, receiverID, amount)
 } 

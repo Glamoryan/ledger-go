@@ -1,13 +1,14 @@
 package factory
 
 import (
+	"Ledger/pkg/auth"
+	"Ledger/pkg/cache"
+	"Ledger/pkg/middleware"
+	"Ledger/pkg/queue"
 	"Ledger/src/handlers"
 	"Ledger/src/repository"
 	"Ledger/src/services"
 	"gorm.io/gorm"
-	"Ledger/pkg/auth"
-	"Ledger/pkg/middleware"
-	"Ledger/pkg/cache"
 )
 
 type Factory interface {
@@ -16,6 +17,7 @@ type Factory interface {
 	NewUserRepository() repository.UserRepository
 	NewAuthMiddleware() middleware.AuthMiddleware
 	NewRedisCache() *cache.RedisCache
+	NewRabbitMQ() *queue.RabbitMQ
 }
 
 type factory struct {
@@ -23,6 +25,7 @@ type factory struct {
 	jwtService auth.JWTService
 	authMiddleware middleware.AuthMiddleware
 	redisCache *cache.RedisCache
+	rabbitMQ *queue.RabbitMQ
 }
 
 func NewFactory(db *gorm.DB) Factory {
@@ -30,11 +33,17 @@ func NewFactory(db *gorm.DB) Factory {
 	authMiddleware := middleware.NewAuthMiddleware(jwtService)
 	redisCache := cache.NewRedisCache("localhost:6379", "", 0)
 	
+	rabbitMQ, err := queue.NewRabbitMQ("amqp://guest:guest@localhost:5672/")
+	if err != nil {
+		panic(err)
+	}
+	
 	return &factory{
 		db: db,
 		jwtService: jwtService,
 		authMiddleware: authMiddleware,
 		redisCache: redisCache,
+		rabbitMQ: rabbitMQ,
 	}
 }
 
@@ -47,7 +56,7 @@ func (f *factory) NewUserService() services.UserService {
 }
 
 func (f *factory) NewUserRepository() repository.UserRepository {
-	return repository.NewUserRepository(f.db, f.redisCache)
+	return repository.NewUserRepository(f.db, f.redisCache, f.rabbitMQ)
 }
 
 func (f *factory) NewAuthMiddleware() middleware.AuthMiddleware {
@@ -56,4 +65,8 @@ func (f *factory) NewAuthMiddleware() middleware.AuthMiddleware {
 
 func (f *factory) NewRedisCache() *cache.RedisCache {
 	return f.redisCache
+}
+
+func (f *factory) NewRabbitMQ() *queue.RabbitMQ {
+	return f.rabbitMQ
 }

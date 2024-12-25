@@ -8,17 +8,20 @@ import (
 	"fmt"
 	"gorm.io/gorm"
 	"time"
+	"Ledger/pkg/queue"
 )
 
 type userRepository struct {
 	db *gorm.DB
 	cache *cache.RedisCache
+	queue *queue.RabbitMQ
 }
 
-func NewUserRepository(db *gorm.DB, cache *cache.RedisCache) UserRepository {
+func NewUserRepository(db *gorm.DB, cache *cache.RedisCache, queue *queue.RabbitMQ) UserRepository {
 	return &userRepository{
 		db: db,
 		cache: cache,
+		queue: queue,
 	}
 }
 
@@ -276,4 +279,45 @@ func (r *userRepository) ProcessBatchCreditUpdate(transactions []models.BatchCre
 	})
 
 	return results
+}
+
+func (r *userRepository) SendCreditAsync(senderID, receiverID uint, amount float64) error {
+	ctx := context.Background()
+
+	var sender, receiver models.User
+	if err := r.db.First(&sender, senderID).Error; err != nil {
+		return errors.New("sender not found")
+	}
+	if err := r.db.First(&receiver, receiverID).Error; err != nil {
+		return errors.New("receiver not found")
+	}
+
+	if sender.Credit < amount {
+		return errors.New("insufficient balance")
+	}
+
+	msg := queue.TransactionMessage{
+		SenderID:   senderID,
+		ReceiverID: receiverID,
+		Amount:     amount,
+	}
+
+	if err := r.queue.PublishTransaction(ctx, msg); err != nil {
+		return fmt.Errorf("failed to queue transaction: %v", err)
+	}
+
+	go func() {
+		_ = r.queue.PublishAuditLog(ctx, "credit_transfer_queued", map[string]interface{}{
+			"sender_id":   senderID,
+			"receiver_id": receiverID,
+			"amount":      amount,
+		})
+	}()
+
+	go func() {
+		_ = r.queue.PublishNotification(ctx, senderID, 
+			fmt.Sprintf("Your transfer of %.2f to user %d is being processed", amount, receiverID))
+	}()
+
+	return nil
 } 

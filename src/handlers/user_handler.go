@@ -330,3 +330,44 @@ func (h *UserHandler) ProcessBatchCreditUpdate(w http.ResponseWriter, r *http.Re
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(results)
 }
+
+func (h *UserHandler) SendCreditAsync(w http.ResponseWriter, r *http.Request) {
+	senderIDStr := r.URL.Query().Get("senderId")
+	receiverIDStr := r.URL.Query().Get("receiverId")
+	amountStr := r.URL.Query().Get("amount")
+
+	claims := middleware.GetUserFromContext(r.Context())
+	if claims == nil {
+		response.WriteError(w, http.StatusUnauthorized, "Unauthorized access")
+		return
+	}
+
+	senderID, _ := strconv.Atoi(senderIDStr)
+	if uint(senderID) != claims.UserID {
+		response.WriteError(w, http.StatusForbidden, "You can only send credit from your own account")
+		return
+	}
+
+	receiverID, err := strconv.Atoi(receiverIDStr)
+	if err != nil {
+		response.WriteError(w, http.StatusBadRequest, "Invalid receiver ID format")
+		return
+	}
+
+	amount, err := strconv.ParseFloat(amountStr, 64)
+	if err != nil {
+		response.WriteError(w, http.StatusBadRequest, "Invalid amount format")
+		return
+	}
+
+	err = h.service.SendCreditAsync(uint(senderID), uint(receiverID), amount)
+	if err != nil {
+		response.WriteError(w, http.StatusBadRequest, "Error queueing credit transfer: "+err.Error())
+		return
+	}
+
+	w.WriteHeader(http.StatusAccepted)
+	json.NewEncoder(w).Encode(map[string]string{
+		"message": "Credit transfer has been queued for processing",
+	})
+}
