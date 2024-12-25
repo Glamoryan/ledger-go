@@ -12,16 +12,22 @@ func main() {
 	appFactory := factory.NewFactory(database)
 
 	userHandler := appFactory.NewUserHandler()
+	authMiddleware := appFactory.NewAuthMiddleware()
 
 	router := mux.NewRouter()
+	
+	// Public routes
 	router.HandleFunc("/users/add-user", userHandler.CreateUser).Methods("POST")
-	router.HandleFunc("/users", userHandler.GetAllUsers).Methods("GET")
-	router.HandleFunc("/users/get-user", userHandler.GetUserByID).Methods("GET")
-	router.HandleFunc("/users/add-credit", userHandler.AddCredit).Methods("POST")
-	router.HandleFunc("/users/get-credit", userHandler.GetCredit).Methods("GET")
-	router.HandleFunc("/users/credits", userHandler.GetAllCredits).Methods("GET")
-	router.HandleFunc("/users/send-credit", userHandler.SendCredit).Methods("POST")
-	router.HandleFunc("/users/transaction-logs/sender", userHandler.GetTransactionLogsBySenderAndDate).Methods("GET")
+	router.HandleFunc("/login", userHandler.Login).Methods("POST")
+
+	router.HandleFunc("/users", authMiddleware.Authenticate(userHandler.GetAllUsers)).Methods("GET")
+	router.HandleFunc("/users/get-user", authMiddleware.Authenticate(userHandler.GetUserByID)).Methods("GET")
+	router.HandleFunc("/users/get-credit", authMiddleware.Authenticate(userHandler.GetCredit)).Methods("GET")
+	router.HandleFunc("/users/send-credit", authMiddleware.Authenticate(userHandler.SendCredit)).Methods("POST")
+	router.HandleFunc("/users/transaction-logs/sender", authMiddleware.Authenticate(userHandler.GetTransactionLogsBySenderAndDate)).Methods("GET")
+
+	router.HandleFunc("/users/add-credit", authMiddleware.Authenticate(authMiddleware.AdminOnly(userHandler.AddCredit))).Methods("POST")
+	router.HandleFunc("/users/credits", authMiddleware.Authenticate(authMiddleware.AdminOnly(userHandler.GetAllCredits))).Methods("GET")
 
 	err := http.ListenAndServe(":8080", router)
 	if err != nil {
