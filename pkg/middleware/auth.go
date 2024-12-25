@@ -1,10 +1,11 @@
 package middleware
 
 import (
+	"fmt"
 	"net/http"
 	"strings"
-	"encoding/json"
 	"Ledger/pkg/auth"
+	"Ledger/pkg/response"
 )
 
 type AuthMiddleware interface {
@@ -26,21 +27,27 @@ func (m *authMiddleware) Authenticate(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		authHeader := r.Header.Get("Authorization")
 		if authHeader == "" {
-			http.Error(w, "Authorization header is required", http.StatusUnauthorized)
+			response.WriteError(w, http.StatusUnauthorized, "Authorization header is required")
 			return
 		}
 
+		fmt.Printf("Auth header: %s\n", authHeader)
+
 		bearerToken := strings.Split(authHeader, " ")
-		if len(bearerToken) != 2 {
-			http.Error(w, "Invalid token format", http.StatusUnauthorized)
+		if len(bearerToken) != 2 || bearerToken[0] != "Bearer" {
+			response.WriteError(w, http.StatusUnauthorized, "Invalid token format. Must be 'Bearer <token>'")
 			return
 		}
+
+		fmt.Printf("Token: %s\n", bearerToken[1])
 
 		claims, err := m.jwtService.ValidateToken(bearerToken[1])
 		if err != nil {
-			http.Error(w, "Invalid token", http.StatusUnauthorized)
+			response.WriteError(w, http.StatusUnauthorized, fmt.Sprintf("Invalid token: %v", err))
 			return
 		}
+
+		fmt.Printf("Claims: %+v\n", claims)
 
 		r = r.WithContext(SetUserContext(r.Context(), claims))
 		next.ServeHTTP(w, r)
@@ -51,11 +58,7 @@ func (m *authMiddleware) AdminOnly(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		claims := GetUserFromContext(r.Context())
 		if claims == nil || !m.jwtService.IsAdmin(claims) {
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusForbidden)
-			json.NewEncoder(w).Encode(map[string]string{
-				"error": "Admin privileges required",
-			})
+			response.WriteError(w, http.StatusForbidden, "Admin privileges required")
 			return
 		}
 		next.ServeHTTP(w, r)

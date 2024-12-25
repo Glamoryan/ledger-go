@@ -44,6 +44,11 @@ func (r *userRepository) GetUserCredit(userID uint) (float64, error) {
 }
 
 func (r *userRepository) UpdateCredit(userID uint, newAmount float64) error {
+	var user models.User
+	if err := r.db.First(&user, userID).Error; err != nil {
+		return errors.New("user not found")
+	}
+
 	return r.db.Model(&models.User{}).Where("id = ?", userID).Update("credit", newAmount).Error
 }
 
