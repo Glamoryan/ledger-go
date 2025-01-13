@@ -2,24 +2,25 @@ package repository
 
 import (
 	"Ledger/pkg/cache"
+	"Ledger/pkg/queue"
 	"Ledger/src/models"
 	"context"
 	"errors"
 	"fmt"
-	"gorm.io/gorm"
 	"time"
-	"Ledger/pkg/queue"
+
+	"gorm.io/gorm"
 )
 
 type userRepository struct {
-	db *gorm.DB
+	db    *gorm.DB
 	cache *cache.RedisCache
 	queue *queue.RabbitMQ
 }
 
 func NewUserRepository(db *gorm.DB, cache *cache.RedisCache, queue *queue.RabbitMQ) UserRepository {
 	return &userRepository{
-		db: db,
+		db:    db,
 		cache: cache,
 		queue: queue,
 	}
@@ -49,7 +50,7 @@ func (r *userRepository) GetByEmail(email string) (*models.User, error) {
 
 func (r *userRepository) GetUserCredit(userID uint) (float64, error) {
 	ctx := context.Background()
-	
+
 	credit, err := r.cache.GetUserCredit(ctx, userID)
 	if err == nil {
 		fmt.Printf("Cache HIT for user %d: %f\n", userID, credit)
@@ -77,20 +78,20 @@ func (r *userRepository) GetUserCredit(userID uint) (float64, error) {
 	} else {
 		fmt.Printf("Cache SET for user %d: %f\n", userID, dbCredit)
 	}
-	
+
 	return dbCredit, nil
 }
 
 func (r *userRepository) UpdateCredit(userID uint, newAmount float64) error {
 	ctx := context.Background()
-	
+
 	err := r.db.Model(&models.User{}).Where("id = ?", userID).Update("credit", newAmount).Error
 	if err != nil {
 		return err
 	}
 
 	_ = r.cache.InvalidateUserCredit(ctx, userID)
-	
+
 	return nil
 }
 
@@ -136,7 +137,6 @@ func (r *userRepository) SendCreditToUser(senderID, receiverID uint, amount floa
 			return err
 		}
 
-
 		logEntry := models.TransactionLog{
 			SenderID:             senderID,
 			ReceiverID:           receiverID,
@@ -172,7 +172,7 @@ func (r *userRepository) GetTransactionLogsBySenderAndDate(senderID uint, date s
 
 func (r *userRepository) GetMultipleUserCredits(userIDs []uint) (map[uint]float64, error) {
 	ctx := context.Background()
-	
+
 	cachedCredits, err := r.cache.GetMultipleUserCredits(ctx, userIDs)
 	if err != nil {
 		return nil, err
@@ -209,7 +209,7 @@ func (r *userRepository) GetMultipleUserCredits(userIDs []uint) (map[uint]float6
 func (r *userRepository) ProcessBatchCreditUpdate(transactions []models.BatchCreditTransaction) []models.BatchTransactionResult {
 	results := make([]models.BatchTransactionResult, len(transactions))
 	userIDs := make([]uint, len(transactions))
-	
+
 	for i, txn := range transactions {
 		userIDs[i] = txn.UserID
 	}
@@ -315,9 +315,9 @@ func (r *userRepository) SendCreditAsync(senderID, receiverID uint, amount float
 	}()
 
 	go func() {
-		_ = r.queue.PublishNotification(ctx, senderID, 
+		_ = r.queue.PublishNotification(ctx, senderID,
 			fmt.Sprintf("Your transfer of %.2f to user %d is being processed", amount, receiverID))
 	}()
 
 	return nil
-} 
+}

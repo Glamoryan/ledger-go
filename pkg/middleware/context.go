@@ -1,21 +1,22 @@
 package middleware
 
 import (
-    "context"
-    "Ledger/pkg/auth"
+	"Ledger/pkg/auth"
+	"context"
 )
 
 type contextKey string
 
-const userContextKey contextKey = "user"
+const UserContextKey contextKey = "user"
 
-func SetUserContext(ctx context.Context, claims *auth.Claims) context.Context {
-    return context.WithValue(ctx, userContextKey, claims)
+func SetUserInContext(ctx context.Context, claims *auth.JWTClaim) context.Context {
+	return context.WithValue(ctx, UserContextKey, claims)
 }
 
-func GetUserFromContext(ctx context.Context) *auth.Claims {
-    if claims, ok := ctx.Value(userContextKey).(*auth.Claims); ok {
-        return claims
-    }
-    return nil
-} 
+func GetUserFromContext(ctx context.Context) *auth.JWTClaim {
+	claims, ok := ctx.Value(UserContextKey).(*auth.JWTClaim)
+	if !ok {
+		return nil
+	}
+	return claims
+}

@@ -1,11 +1,11 @@
 package middleware
 
 import (
+	"Ledger/pkg/auth"
+	"Ledger/pkg/response"
 	"fmt"
 	"net/http"
 	"strings"
-	"Ledger/pkg/auth"
-	"Ledger/pkg/response"
 )
 
 type AuthMiddleware interface {
@@ -49,7 +49,7 @@ func (m *authMiddleware) Authenticate(next http.HandlerFunc) http.HandlerFunc {
 
 		fmt.Printf("Claims: %+v\n", claims)
 
-		r = r.WithContext(SetUserContext(r.Context(), claims))
+		r = r.WithContext(SetUserInContext(r.Context(), claims))
 		next.ServeHTTP(w, r)
 	}
 }

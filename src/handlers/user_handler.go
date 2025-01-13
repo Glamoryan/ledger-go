@@ -1,16 +1,17 @@
 package handlers
 
 import (
+	"Ledger/pkg/auth"
+	"Ledger/pkg/middleware"
+	"Ledger/pkg/response"
+	"Ledger/src/models"
 	"Ledger/src/services"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
-	"Ledger/pkg/middleware"
-	"Ledger/src/models"
-	"Ledger/pkg/auth"
-	"Ledger/pkg/response"
+
 	"golang.org/x/crypto/bcrypt"
-	"fmt"
 )
 
 type UserHandler struct {
@@ -62,12 +63,12 @@ func (h *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	user := &models.User{
-		Name:         req.Name,
-		Surname:      req.Surname,
-		Age:         req.Age,
-		Email:       req.Email,
-		PasswordHash: string(hashedPassword),
-		Role:        "user",
+		Name:     req.Name,
+		Surname:  req.Surname,
+		Age:      req.Age,
+		Email:    req.Email,
+		Password: string(hashedPassword),
+		Role:     "user",
 	}
 
 	err = h.service.CreateUser(user)
@@ -251,13 +252,13 @@ func (h *UserHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.Password))
+	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password))
 	if err != nil {
 		response.WriteError(w, http.StatusUnauthorized, "Invalid credentials")
 		return
 	}
 
-	token, err := h.jwtService.GenerateToken(user.ID, user.Email, user.Role)
+	token, err := h.jwtService.GenerateToken(user.ID, user.Email, user.Role == "admin")
 	if err != nil {
 		response.WriteError(w, http.StatusInternalServerError, "Error generating token")
 		return
