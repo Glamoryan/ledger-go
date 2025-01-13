@@ -178,13 +178,28 @@ CREATE TABLE users (
 ```sql
 CREATE TABLE transaction_logs (
     id SERIAL PRIMARY KEY,
-    sender_id INT NOT NULL,
-    receiver_id INT NOT NULL,
+    sender_id BIGINT NOT NULL,
+    receiver_id BIGINT NOT NULL,
     amount DECIMAL(10, 2) NOT NULL,
     sender_credit_before DECIMAL(10, 2) NOT NULL,
     receiver_credit_before DECIMAL(10, 2) NOT NULL,
     transaction_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (sender_id) REFERENCES users(id),
     FOREIGN KEY (receiver_id) REFERENCES users(id)
+);
+```
+
+### Insert User
+```sql
+-- (password: admin123)
+INSERT INTO users (Name, Surname, Age, Email, Password_Hash, Role, Credit) 
+VALUES (
+    'Admin',
+    'User',
+    30,
+    'admin@ledger.com',
+    '$2a$10$ZYTqWBQXY5OYzXRKJZyMXuF7HQWZoHJM1qZxUVfZn.hO.HW1Jq9Oe',
+    'admin',
+    1000000.00
 );
 ```
