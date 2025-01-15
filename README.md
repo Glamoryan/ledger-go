@@ -7,27 +7,12 @@
 go run cmd/main.go
 ```
 
-### Worker Service
-```bash
-go run cmd/worker/main.go
-```
-
 ### Dependencies
 1. Redis Server
 ```bash
 brew install redis
 brew services start redis
 ```
-
-2. RabbitMQ Server
-```bash
-brew install rabbitmq
-brew services start rabbitmq
-```
-
-RabbitMQ Management UI: http://localhost:15672
-- Username: guest
-- Password: guest
 
 ## Authentication
 
@@ -55,33 +40,6 @@ curl -X GET "http://localhost:8080/users/get-credit?id=YOUR_ID" -H "Authorizatio
 ```bash
 curl -X POST "http://localhost:8080/users/send-credit?senderId=YOUR_ID&receiverId=RECEIVER_ID&amount=50" -H "Authorization: Bearer YOUR_TOKEN"
 ```
-
-#### Send Credit Asynchronously
-```bash
-curl -X POST "http://localhost:8080/users/send-credit-async?senderId=YOUR_ID&receiverId=RECEIVER_ID&amount=50" \
-     -H "Authorization: Bearer YOUR_TOKEN"
-```
-
-Response:
-```json
-{
-    "message": "Credit transfer has been queued for processing"
-}
-```
-
-The asynchronous credit transfer process:
-1. Validates sender and receiver
-2. Checks sender's balance
-3. Queues the transaction
-4. Returns immediate response (HTTP 202)
-5. Worker processes the transaction in background
-6. Notifications are sent to users
-7. Audit logs are recorded
-
-Message Queues:
-- transaction_queue: For credit transfer operations
-- notification_queue: For user notifications
-- audit_queue: For system audit logs
 
 #### View Transaction History
 ```bash

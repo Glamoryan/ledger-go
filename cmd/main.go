@@ -25,7 +25,6 @@ func main() {
 	// Protected endpoints
 	router.HandleFunc("/users/get-credit", authMiddleware.Authenticate(userHandler.GetCredit)).Methods("GET")
 	router.HandleFunc("/users/send-credit", authMiddleware.Authenticate(userHandler.SendCredit)).Methods("POST")
-	router.HandleFunc("/users/send-credit-async", authMiddleware.Authenticate(userHandler.SendCreditAsync)).Methods("POST")
 	router.HandleFunc("/users/transaction-logs/sender", authMiddleware.Authenticate(userHandler.GetTransactionLogsBySenderAndDate)).Methods("GET")
 
 	// Admin only endpoints

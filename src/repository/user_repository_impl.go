@@ -2,7 +2,6 @@ package repository
 
 import (
 	"Ledger/pkg/cache"
-	"Ledger/pkg/queue"
 	"Ledger/src/models"
 	"context"
 	"errors"
@@ -15,14 +14,12 @@ import (
 type userRepository struct {
 	db    *gorm.DB
 	cache *cache.RedisCache
-	queue *queue.RabbitMQ
 }
 
-func NewUserRepository(db *gorm.DB, cache *cache.RedisCache, queue *queue.RabbitMQ) UserRepository {
+func NewUserRepository(db *gorm.DB, cache *cache.RedisCache) UserRepository {
 	return &userRepository{
 		db:    db,
 		cache: cache,
-		queue: queue,
 	}
 }
 
@@ -95,18 +92,10 @@ func (r *userRepository) UpdateCredit(userID uint, newAmount float64) error {
 	return nil
 }
 
-func (r *userRepository) GetAllCredits() (map[uint]float64, error) {
+func (r *userRepository) GetAllCredits() ([]models.User, error) {
 	var users []models.User
 	err := r.db.Select("id, credit").Find(&users).Error
-	if err != nil {
-		return nil, err
-	}
-
-	credits := make(map[uint]float64)
-	for _, user := range users {
-		credits[user.ID] = user.Credit
-	}
-	return credits, nil
+	return users, err
 }
 
 func (r *userRepository) SendCreditToUser(senderID, receiverID uint, amount float64) error {
@@ -170,75 +159,20 @@ func (r *userRepository) GetTransactionLogsBySenderAndDate(senderID uint, date s
 	return logs, err
 }
 
-func (r *userRepository) GetMultipleUserCredits(userIDs []uint) (map[uint]float64, error) {
-	ctx := context.Background()
-
-	cachedCredits, err := r.cache.GetMultipleUserCredits(ctx, userIDs)
-	if err != nil {
-		return nil, err
-	}
-
-	missingUserIDs := make([]uint, 0)
-	for _, userID := range userIDs {
-		if _, exists := cachedCredits[userID]; !exists {
-			missingUserIDs = append(missingUserIDs, userID)
-		}
-	}
-
-	if len(missingUserIDs) > 0 {
-		var users []models.User
-		err := r.db.Where("id IN ?", missingUserIDs).Select("id, credit").Find(&users).Error
-		if err != nil {
-			return nil, err
-		}
-
-		dbCredits := make(map[uint]float64)
-		for _, user := range users {
-			dbCredits[user.ID] = user.Credit
-			cachedCredits[user.ID] = user.Credit
-		}
-
-		go func() {
-			_ = r.cache.SetMultipleUserCredits(ctx, dbCredits)
-		}()
-	}
-
-	return cachedCredits, nil
+func (r *userRepository) GetMultipleUserCredits(userIDs []uint) ([]models.User, error) {
+	var users []models.User
+	err := r.db.Select("id, credit").Where("id IN ?", userIDs).Find(&users).Error
+	return users, err
 }
 
-func (r *userRepository) ProcessBatchCreditUpdate(transactions []models.BatchCreditTransaction) []models.BatchTransactionResult {
+func (r *userRepository) ProcessBatchCreditUpdate(transactions []models.BatchTransaction) []models.BatchTransactionResult {
 	results := make([]models.BatchTransactionResult, len(transactions))
-	userIDs := make([]uint, len(transactions))
+	updatedUserIDs := make([]uint, 0)
 
-	for i, txn := range transactions {
-		userIDs[i] = txn.UserID
-	}
-
-	var existingUsers []models.User
-	err := r.db.Where("id IN ?", userIDs).Select("id, credit").Find(&existingUsers).Error
-	if err != nil {
-		for i := range results {
-			results[i] = models.BatchTransactionResult{
-				Success: false,
-				UserID:  transactions[i].UserID,
-				Amount:  transactions[i].Amount,
-				Error:   "Database error",
-			}
-		}
-		return results
-	}
-
-	existingUserMap := make(map[uint]bool)
-	for _, user := range existingUsers {
-		existingUserMap[user.ID] = true
-	}
-
-	err = r.db.Transaction(func(tx *gorm.DB) error {
-		ctx := context.Background()
-		updatedUserIDs := make([]uint, 0)
-
+	err := r.db.Transaction(func(tx *gorm.DB) error {
 		for i, txn := range transactions {
-			if !existingUserMap[txn.UserID] {
+			var user models.User
+			if err := tx.First(&user, txn.UserID).Error; err != nil {
 				results[i] = models.BatchTransactionResult{
 					Success: false,
 					UserID:  txn.UserID,
@@ -248,11 +182,7 @@ func (r *userRepository) ProcessBatchCreditUpdate(transactions []models.BatchCre
 				continue
 			}
 
-			err := tx.Model(&models.User{}).
-				Where("id = ?", txn.UserID).
-				Update("credit", gorm.Expr("credit + ?", txn.Amount)).Error
-
-			if err != nil {
+			if err := tx.Model(&user).Update("credit", user.Credit+txn.Amount).Error; err != nil {
 				results[i] = models.BatchTransactionResult{
 					Success: false,
 					UserID:  txn.UserID,
@@ -270,6 +200,7 @@ func (r *userRepository) ProcessBatchCreditUpdate(transactions []models.BatchCre
 		}
 
 		if len(updatedUserIDs) > 0 {
+			ctx := context.Background()
 			go func() {
 				_ = r.cache.InvalidateMultipleUserCredits(ctx, updatedUserIDs)
 			}()
@@ -278,12 +209,14 @@ func (r *userRepository) ProcessBatchCreditUpdate(transactions []models.BatchCre
 		return nil
 	})
 
+	if err != nil {
+		return results
+	}
+
 	return results
 }
 
-func (r *userRepository) SendCreditAsync(senderID, receiverID uint, amount float64) error {
-	ctx := context.Background()
-
+func (r *userRepository) SendCredit(senderID, receiverID uint, amount float64) error {
 	var sender, receiver models.User
 	if err := r.db.First(&sender, senderID).Error; err != nil {
 		return errors.New("sender not found")
@@ -296,27 +229,63 @@ func (r *userRepository) SendCreditAsync(senderID, receiverID uint, amount float
 		return errors.New("insufficient balance")
 	}
 
-	msg := queue.TransactionMessage{
-		SenderID:   senderID,
-		ReceiverID: receiverID,
-		Amount:     amount,
+	err := r.db.Transaction(func(tx *gorm.DB) error {
+		senderCreditBefore := sender.Credit
+		receiverCreditBefore := receiver.Credit
+
+		// Update sender's credit
+		if err := tx.Model(&sender).Update("credit", sender.Credit-amount).Error; err != nil {
+			return err
+		}
+
+		// Update receiver's credit
+		if err := tx.Model(&receiver).Update("credit", receiver.Credit+amount).Error; err != nil {
+			return err
+		}
+
+		// Log the transaction
+		transactionLog := models.TransactionLog{
+			SenderID:             senderID,
+			ReceiverID:           receiverID,
+			Amount:               amount,
+			SenderCreditBefore:   senderCreditBefore,
+			ReceiverCreditBefore: receiverCreditBefore,
+			TransactionDate:      time.Now(),
+		}
+		if err := tx.Create(&transactionLog).Error; err != nil {
+			return err
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return err
 	}
 
-	if err := r.queue.PublishTransaction(ctx, msg); err != nil {
-		return fmt.Errorf("failed to queue transaction: %v", err)
-	}
-
+	// Invalidate cache for both users
+	ctx := context.Background()
 	go func() {
-		_ = r.queue.PublishAuditLog(ctx, "credit_transfer_queued", map[string]interface{}{
-			"sender_id":   senderID,
-			"receiver_id": receiverID,
-			"amount":      amount,
-		})
+		_ = r.cache.InvalidateUserCredit(ctx, senderID)
+		_ = r.cache.InvalidateUserCredit(ctx, receiverID)
 	}()
 
+	return nil
+}
+
+func (r *userRepository) AddCredit(userID uint, amount float64) error {
+	var user models.User
+	if err := r.db.First(&user, userID).Error; err != nil {
+		return errors.New("user not found")
+	}
+
+	if err := r.db.Model(&user).Update("credit", user.Credit+amount).Error; err != nil {
+		return err
+	}
+
+	ctx := context.Background()
 	go func() {
-		_ = r.queue.PublishNotification(ctx, senderID,
-			fmt.Sprintf("Your transfer of %.2f to user %d is being processed", amount, receiverID))
+		_ = r.cache.InvalidateUserCredit(ctx, userID)
 	}()
 
 	return nil

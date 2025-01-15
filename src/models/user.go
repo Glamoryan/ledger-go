@@ -23,3 +23,15 @@ type RegisterRequest struct {
 	Email    string `json:"email"`
 	Password string `json:"password"`
 }
+
+type BatchTransaction struct {
+	UserID uint    `json:"user_id"`
+	Amount float64 `json:"amount"`
+}
+
+type BatchTransactionResult struct {
+	Success bool    `json:"success"`
+	UserID  uint    `json:"user_id"`
+	Amount  float64 `json:"amount"`
+	Error   string  `json:"error,omitempty"`
+}

@@ -10,12 +10,10 @@ type UserRepository interface {
 	GetByID(id uint) (*models.User, error)
 	GetByEmail(email string) (*models.User, error)
 	GetUserCredit(userID uint) (float64, error)
-	UpdateCredit(userID uint, newAmount float64) error
-	GetAllCredits() (map[uint]float64, error)
-	SendCreditToUser(senderID, receiverID uint, amount float64) error
-	SendCreditAsync(senderID, receiverID uint, amount float64) error
-	LogTransaction(senderID, receiverID uint, amount, senderCreditBefore, receiverCreditBefore float64) error
+	SendCredit(senderID, receiverID uint, amount float64) error
 	GetTransactionLogsBySenderAndDate(senderID uint, date string) ([]models.TransactionLog, error)
-	GetMultipleUserCredits(userIDs []uint) (map[uint]float64, error)
-	ProcessBatchCreditUpdate(transactions []models.BatchCreditTransaction) []models.BatchTransactionResult
+	AddCredit(userID uint, amount float64) error
+	GetAllCredits() ([]models.User, error)
+	GetMultipleUserCredits(userIDs []uint) ([]models.User, error)
+	ProcessBatchCreditUpdate(transactions []models.BatchTransaction) []models.BatchTransactionResult
 }
