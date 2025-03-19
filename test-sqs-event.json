@@ -1,1 +1,0 @@
-{"Records":[{"messageId":"test-message","body":"{\"path\":\"/users/add-user\",\"httpMethod\":\"POST\",\"body\":{\"name\":\"Test7\",\"surname\":\"User\",\"age\":30,\"email\":\"test7@example.com\",\"password\":\"test123\"}}"}]}

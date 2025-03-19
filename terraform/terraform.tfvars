@@ -1,8 +1,0 @@
-region       = "eu-north-1"
-app_name     = "ledger"
-environment  = "dev"
-lambda_zip_path = "../lambda/deployment.zip"
-db_name      = "ledgerdb"
-db_username  = "ledgeradmin"
-db_password  = "LedgerPassword123"
-vpc_cidr     = "10.0.0.0/16" 

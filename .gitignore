@@ -2,3 +2,28 @@
 /.env
 /myapp
 /bin/
+
+# Terraform gereksiz dosyaları
+.terraform/
+terraform/.terraform/
+*.tfstate
+*.tfstate.backup
+*.tfstate.lock.info
+*.tfvars
+terraform.tfvars
+.terraformrc
+terraform.rc
+crash.log
+
+# Derlenmiş dosyalar
+*.zip
+bootstrap
+lambda/bootstrap
+payload.zip
+*_lambda.zip
+jwt_auth_lambda.zip
+
+# Geçici dosyalar
+out.json
+response.json
+test-sqs-event.json
