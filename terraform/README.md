@@ -1,15 +1,4 @@
-# Ledger API Terraform Projesi
-
-Bu Terraform projesi, Go ile yazılmış Ledger API'sini AWS serverless mimarisinde çalıştırmak için gerekli altyapıyı oluşturur.
-
-## Mimari Yapı
-
-- **VPC ve Subnet**: Uygulama için izole bir ağ ortamı
-- **RDS PostgreSQL**: Veritabanı sistemi
-- **API Gateway**: API isteklerini karşılar ve Lambda fonksiyonuna veya SQS kuyruğuna yönlendirir
-- **SQS**: Asenkron işlenmesi gereken istekleri kuyruğa alır
-- **Lambda**: API isteklerini ve SQS mesajlarını işler
-- **CloudWatch Logs**: Log kayıtlarını tutar
+# Ledger API Terraform
 
 ## Ön Gereksinimler
 
@@ -18,69 +7,7 @@ Bu Terraform projesi, Go ile yazılmış Ledger API'sini AWS serverless mimarisi
 - Go (>= 1.18)
 - PostgreSQL Client (psql) - Veritabanı şemasını oluşturmak için
 
-## Kurulum ve Kullanım
-
-### 1. Lambda Fonksiyonu Derleme
-
-Lambda fonksiyonunu AWS için derlemek:
-
-```bash
-./build_lambda.sh
-```
-
-### 2. Terraform Değişkenlerini Düzenleme
-
-`terraform.tfvars` dosyasındaki değerleri gözden geçirin:
-
-```hcl
-region          = "eu-north-1"           # AWS bölgesi
-app_name        = "ledger"              # Uygulama adı
-environment     = "dev"                 # Ortam (dev, prod, test)
-lambda_zip_path = "../lambda/deployment.zip"  # Lambda derleme çıktısı
-db_name         = "ledgerdb"            # Veritabanı adı
-db_username     = "ledgeradmin"         # Veritabanı kullanıcı adı
-vpc_cidr        = "10.0.0.0/16"         # VPC CIDR bloğu
-```
-
-### 3. Terraform Başlatma
-
-```bash
-terraform init
-```
-
-### 4. Terraform Plan
-
-Yapılacak değişiklikleri görmek için:
-
-```bash
-terraform plan -var-file=terraform.tfvars -var="db_password=YOUR_DB_PASSWORD"
-```
-
-### 5. Terraform Apply
-
-Altyapıyı oluşturmak için:
-
-```bash
-terraform apply -var-file=terraform.tfvars -var="db_password=YOUR_DB_PASSWORD"
-```
-
-### 6. Veritabanı Tabloları ve İlk Veri
-
-Terraform, terraform/rds.tf dosyasındaki null_resource sayesinde otomatik olarak:
-- users ve transaction_logs tablolarını oluşturur
-- admin@ledger.com (şifre: admin123) kullanıcısını ekler
-
-### 7. Altyapı Kaldırma
-
-Oluşturulan tüm AWS kaynaklarını kaldırmak için:
-
-```bash
-terraform destroy -var-file=terraform.tfvars -var="db_password=YOUR_DB_PASSWORD"
-```
-
 ## API Kullanımı
-
-Terraform çıktıları API URL ve API Key gibi bilgileri verecektir. API'yi kullanmak için örnek curl komutları:
 
 ### Kullanıcı Ekleme
 
